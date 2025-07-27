@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Upload Statement - Bank Statement Analyzer{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-8">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold text-gray-900">Upload Bank Statement</h2>
+                <p class="mt-2 text-gray-600">Upload your bank statement PDF file for analysis</p>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" class="space-y-6">
+                {% csrf_token %}
+                {{ form|crispy }}
+
+                <div class="bg-gray-50 p-4 rounded-lg">
+                    <h3 class="text-sm font-medium text-gray-900">Supported Banks:</h3>
+                    <ul class="mt-2 text-sm text-gray-600 list-disc list-inside">
+                        <li>Access Bank</li>
+                        <li>Zenith Bank</li>
+                        <li>UBA</li>
+                        <li>GTBank</li>
+                    </ul>
+                </div>
+
+                <div class="flex items-center justify-between mt-6">
+                    <a href="{% url 'dashboard' %}" class="text-indigo-600 hover:text-indigo-900">
+                        Back to Dashboard
+                    </a>
+                    <button type="submit" class="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Upload Statement
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="mt-8 bg-white shadow-lg rounded-lg overflow-hidden">
+        <div class="px-6 py-8">
+            <h3 class="text-xl font-semibold text-gray-900 mb-4">Tips for successful upload:</h3>
+            <ul class="space-y-4 text-gray-600">
+                <li class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Ensure your PDF is not password protected</span>
+                </li>
+                <li class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Statement should be in the original format from your bank</span>
+                </li>
+                <li class="flex items-start">
+                    <svg class="h-6 w-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Maximum file size: 10MB</span>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

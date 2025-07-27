@@ -1,0 +1,279 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard - Bank Statement Analyzer{% endblock %}
+
+{% block content %}
+<div class="bg-white shadow-lg rounded-lg overflow-hidden mb-6">
+    <div class="px-6 py-8">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-gray-900">Financial Dashboard</h1>
+            <div class="flex space-x-2">
+                <form method="get" class="flex items-center space-x-2">
+                    <select name="date_range" class="rounded-md border-gray-300 shadow-sm focus:border-indigo-300 focus:ring focus:ring-indigo-200 focus:ring-opacity-50">
+                        <option value="all" {% if date_filter == 'all' %}selected{% endif %}>All Time</option>
+                        <option value="month" {% if date_filter == 'month' %}selected{% endif %}>Last 30 Days</option>
+                        <option value="3months" {% if date_filter == '3months' %}selected{% endif %}>Last 3 Months</option>
+                        <option value="6months" {% if date_filter == '6months' %}selected{% endif %}>Last 6 Months</option>
+                        <option value="year" {% if date_filter == 'year' %}selected{% endif %}>Last Year</option>
+                    </select>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2">
+                        Filter
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        {% if not files %}
+        <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">No statements uploaded yet</h3>
+            <p class="mt-1 text-sm text-gray-500">Get started by uploading your first bank statement.</p>
+            <div class="mt-6">
+                <a href="{% url 'upload' %}" class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                    Upload Statement
+                </a>
+            </div>
+        </div>
+        {% else %}
+
+        <!-- Key Statistics -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div class="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl p-6 text-white">
+                <h3 class="text-lg font-semibold mb-2">Total Spending</h3>
+                <p class="text-3xl font-bold">₦{{ stats.total_spent|floatformat:2|intcomma }}</p>
+                <p class="text-sm opacity-75 mt-2">{{ stats.transaction_count }} transactions</p>
+            </div>
+            <div class="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl p-6 text-white">
+                <h3 class="text-lg font-semibold mb-2">Total Income</h3>
+                <p class="text-3xl font-bold">₦{{ stats.total_income|floatformat:2|intcomma }}</p>
+                <p class="text-sm opacity-75 mt-2">Average: ₦{{ stats.avg_transaction|floatformat:2|intcomma }}</p>
+            </div>
+            <div class="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl p-6 text-white">
+                <h3 class="text-lg font-semibold mb-2">Largest Expense</h3>
+                <p class="text-3xl font-bold">₦{{ stats.largest_expense|floatformat:2|intcomma }}</p>
+                <p class="text-sm opacity-75 mt-2">Highest income: ₦{{ stats.largest_income|floatformat:2|intcomma }}</p>
+            </div>
+        </div>
+
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- Monthly Trend -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Monthly Income vs Expenses</h3>
+                <canvas id="monthlyTrendChart" class="w-full" height="300"></canvas>
+            </div>
+
+            <!-- Category Distribution -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">Spending by Category</h3>
+                <canvas id="categoryChart" class="w-full" height="300"></canvas>
+            </div>
+        </div>
+
+        <!-- Weekly Pattern -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Weekly Spending Pattern</h3>
+            <canvas id="weeklyChart" height="100"></canvas>
+        </div>
+
+        <!-- Recent Transactions -->
+        <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Recent Transactions</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Category</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for transaction in transactions %}
+                        <tr class="hover:bg-gray-50 transition-colors">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                {{ transaction.date|date:"M d, Y" }}
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-900">
+                                {{ transaction.description }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium {% if transaction.amount < 0 %}text-red-600{% else %}text-green-600{% endif %}">
+                                ₦{{ transaction.amount|abs|floatformat:2|intcomma }}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="px-2 py-1 text-xs font-semibold rounded-full 
+                                    {% if transaction.category %}
+                                        {% if transaction.amount < 0 %}bg-red-100 text-red-800{% else %}bg-green-100 text-green-800{% endif %}
+                                    {% else %}
+                                        bg-gray-100 text-gray-800
+                                    {% endif %}">
+                                    {{ transaction.category.name|default:"Uncategorized"|title }}
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                <a href="{% url 'edit_transaction' transaction.id %}" class="text-indigo-600 hover:text-indigo-900">Edit</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if files %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+<script>
+    // Utility function for formatting currency
+    const formatCurrency = (value) => {
+        return '₦' + Math.abs(value).toLocaleString('en-NG', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    };
+
+    // Monthly Trend Chart
+    const monthlyData = {{ monthly_totals|safe }};
+    new Chart(document.getElementById('monthlyTrendChart'), {
+        type: 'line',
+        data: {
+            labels: monthlyData.map(item => new Date(item.month).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })),
+            datasets: [
+                {
+                    label: 'Income',
+                    data: monthlyData.map(item => item.income || 0),
+                    borderColor: 'rgb(16, 185, 129)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                },
+                {
+                    label: 'Expenses',
+                    data: monthlyData.map(item => Math.abs(item.expenses || 0)),
+                    borderColor: 'rgb(239, 68, 68)',
+                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                intersect: false,
+                mode: 'index'
+            },
+            plugins: {
+                legend: {
+                    position: 'top'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${formatCurrency(context.raw)}`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: formatCurrency
+                    }
+                }
+            }
+        }
+    });
+
+    // Category Distribution Chart
+    const categoryData = {{ category_totals|safe }};
+    new Chart(document.getElementById('categoryChart'), {
+        type: 'doughnut',
+        data: {
+            labels: categoryData.map(item => item.category__name || 'Uncategorized'),
+            datasets: [{
+                data: categoryData.map(item => item.total),
+                backgroundColor: [
+                    'rgb(79, 70, 229)',
+                    'rgb(59, 130, 246)',
+                    'rgb(16, 185, 129)',
+                    'rgb(245, 158, 11)',
+                    'rgb(239, 68, 68)',
+                    'rgb(139, 92, 246)',
+                    'rgb(236, 72, 153)',
+                    'rgb(107, 114, 128)',
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right'
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const value = formatCurrency(context.raw);
+                            const percentage = categoryData[context.dataIndex].percentage.toFixed(1);
+                            return `${context.label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Weekly Pattern Chart
+    const weeklyData = {{ weekly_totals|safe }};
+    new Chart(document.getElementById('weeklyChart'), {
+        type: 'bar',
+        data: {
+            labels: weeklyData.map(item => new Date(item.week).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })),
+            datasets: [{
+                label: 'Weekly Spending',
+                data: weeklyData.map(item => Math.abs(item.total)),
+                backgroundColor: 'rgba(79, 70, 229, 0.8)',
+                borderColor: 'rgb(79, 70, 229)',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    display: false
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return formatCurrency(context.raw);
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        callback: formatCurrency
+                    }
+                }
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}
